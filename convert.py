@@ -46,10 +46,12 @@ def get_original_bitrate(video_file):
                 "-of", "default=noprint_wrappers=1:nokey=1", video_file
             ]
         ).decode("utf-8").strip()
+        if result == 'N/A' or not result:
+            raise ValueError("Bitrate not available")
         return f"{int(result) // 1000}k"
     except Exception as e:
-        print(f"Error getting original bitrate: {e}")
-        return None
+        print(f"Error getting original bitrate for {video_file}: {e}")
+        return "6000k"  # Set a higher default bitrate if original bitrate cannot be obtained
 
 # Function to get the duration of a video file
 def get_video_duration(video_file):
@@ -69,7 +71,7 @@ def get_video_duration(video_file):
 def process_video(file, args, gpu_type, video_encoder, preset, old_directory):
     try:
         old_full_name = os.path.join(old_directory, os.path.basename(file))
-        output_name = os.path.splitext(file)[0] + args.output_format
+        output_name = os.path.join(args.directory, os.path.splitext(os.path.basename(file))[0] + args.output_format)
 
         print(f"Processing file: {os.path.basename(old_full_name)}")
 
