@@ -87,28 +87,41 @@ def process_video(file, args, gpu_type, video_encoder, preset, old_directory):
         command.append(output_name)
         print(f"Executing command: {' '.join(command)}")
 
-        process = subprocess.Popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=True,
-            bufsize=1
-        )
+        log_file_path = os.path.splitext(output_name)[0] + "_conversion.log"
+        if args.debug:
+            log_file = open(log_file_path, "w")
+        else:
+            log_file = open(os.devnull, "w")
 
-        with tqdm(total=100, desc=f"{os.path.basename(old_full_name)} Progress", leave=False) as pbar_file:
-            for line in process.stdout:
-                match = re.search(r"out_time_ms=(\d+)", line)
-                if match:
-                    progress = int(match.group(1)) // 1000000  # Convert to seconds
-                    pbar_file.n = min(100, progress)
-                    pbar_file.refresh()
+            process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                universal_newlines=True,
+                bufsize=1
+            )
 
-            process.wait()
-            if process.returncode != 0:
-                raise subprocess.CalledProcessError(process.returncode, command)
-            pbar_file.n = 100  # Ensure the bar is completed after process ends
-            pbar_file.refresh()
-            print(f"Finished processing file: {os.path.basename(old_full_name)}")
+            with tqdm(total=100, desc=f"{os.path.basename(old_full_name)} Progress", leave=False) as pbar_file:
+                progress = 0
+                for line in process.stdout:
+                    if args.debug:
+                        log_file.write(line)  # Write each line to the log file if debug is enabled
+                    match = re.search(r"out_time_ms=(\d+)", line)
+                    if match:
+                        progress = min(100, int(match.group(1)) // 1000000)  # Convert to seconds
+                        pbar_file.n = progress
+                        pbar_file.refresh()
+
+                process.wait()
+                log_file.close()
+
+                if process.returncode != 0:
+                    raise subprocess.CalledProcessError(process.returncode, command)
+                # Ensure the bar is completed after process ends
+                pbar_file.n = 100
+                pbar_file.refresh()
+                pbar_file.close()
+                print(f"Finished processing file: {os.path.basename(old_full_name)}")
 
     except subprocess.CalledProcessError as e:
         print(f"Error processing file {os.path.basename(file)}: {e}")
@@ -127,6 +140,7 @@ parser.add_argument("-o", "--output_format", type=str, default=".mkv", help="Out
 parser.add_argument("-b", "--bitrate", type=str, default=None, help="Bitrate for the video (e.g., 600k). If not provided, the original bitrate is used.")
 parser.add_argument("-r", "--resolution", type=str, default=None, help="Resolution for upscaling (e.g., 1280x720). If not provided, no upscaling is applied.")
 parser.add_argument("--remove_metadata", action="store_true", help="Remove metadata from the video file.")
+parser.add_argument("--debug", action="store_true", help="Enable debug mode to generate detailed logs for each conversion.")
 args = parser.parse_args()
 
 # Display ffmpeg version
