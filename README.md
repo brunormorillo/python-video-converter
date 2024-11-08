@@ -1,97 +1,121 @@
+# Video Converter with FFmpeg
 
-# Video Conversion Script
-
-This project is a Python script for converting video files to a specific format with optional bitrate adjustment, upscaling, and metadata removal. The script automatically detects the available GPU (NVIDIA, AMD, or CPU) to select the appropriate video encoder, making the conversion process more efficient.
+This project provides a command-line utility to convert video files to a specific format with optional upscaling, bitrate adjustment, and metadata removal. It leverages FFmpeg for the conversion process and automatically detects the GPU type (NVIDIA, AMD, or CPU) to use the optimal encoder.
 
 ## Features
 
-- **Automatic GPU Detection**: Detects NVIDIA or AMD GPUs (or defaults to CPU if no GPU is found) and selects the best encoder.
-- **Batch Conversion**: Processes all videos in the specified directory that match the given input formats.
-- **Bitrate Adjustment**: Option to specify a target bitrate, or default to the original bitrate.
-- **Upscaling**: Option to upscale the video to a specified resolution.
-- **Metadata Removal**: Option to remove metadata from the video.
-- **Progress Tracking**: Displays a progress bar for each file and the overall process using `tqdm`.
+- Converts video files to a specified format (e.g., MKV).
+- Automatically detects available GPU to use the most suitable encoder (NVIDIA, AMD, or CPU).
+- Option to adjust the resolution of the output video.
+- Option to remove metadata from video files.
+- Option to specify a custom bitrate.
+- Parallel processing of multiple video files for efficiency.
 
-## Requirements
+## Prerequisites
 
-- Python 3 or higher
-- [FFmpeg](https://ffmpeg.org/download.html) installed and accessible from the command line
-- `tqdm` Python package for displaying progress bars
+- Python 3.12+
+- FFmpeg installed and available in the system's PATH.
+- NVIDIA or AMD GPU drivers installed if available (optional).
 
 ## Installation
 
-### 1. Install FFmpeg
+1. Clone the repository:
 
-FFmpeg is required for video processing. You can install it via:
+   ```bash
+   git clone https://github.com/brunormorillo/video-converter.git
+   cd video-converter
+   ```
 
-- **Windows**: Download the FFmpeg executable from [FFmpeg's website](https://ffmpeg.org/download.html) and add it to your PATH.
-- **Linux (Debian/Ubuntu)**:
-  ```bash
-  sudo apt update
-  sudo apt install ffmpeg
-  ```
-- **macOS**:
-  ```bash
-  brew install ffmpeg
-  ```
+2. Install the required Python packages:
 
-### 2. Install `tqdm`
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-To install `tqdm` for progress bars, run:
-```bash
-pip install tqdm
-```
+   The required packages are:
+
+   - `tqdm`: For progress visualization.
 
 ## Usage
 
-To run the script, use the command below, replacing the placeholders with your own values:
+To run the video conversion script, use the following command:
 
 ```bash
-python video_converter.py -d <directory_path> -i .mp4 .avi -o .mkv -b 600k -r 1280x720 --remove_metadata
+python convert.py -d <directory> [options]
 ```
 
-### Arguments
+### Arguments and Options
 
-| Argument              | Description                                                                                      |
-|-----------------------|--------------------------------------------------------------------------------------------------|
-| `-d`, `--directory`   | Directory where the videos are located. **Required**                                             |
-| `-i`, `--input_formats` | Input formats for the files to be converted (e.g., `.mp4 .ts`). If none are provided, all video files in the directory will be converted. |
-| `-o`, `--output_format` | Output format for the converted files (default: `.mkv`).                                        |
-| `-b`, `--bitrate`     | Bitrate for the video (e.g., `600k`). If not provided, the original bitrate is used.             |
-| `-r`, `--resolution`  | Resolution for upscaling (e.g., `1280x720`). If not provided, no upscaling is applied.           |
-| `--remove_metadata`   | Option to remove metadata from the video file.                                                   |
+- **`-d`, `--directory`** (required): Directory where the videos are located.
 
-### Example Usage
+  Example: `-d /path/to/videos`
 
-```bash
-python video_converter.py -d ./videos -i .mp4 -o .mkv -b 800k -r 1920x1080 --remove_metadata
-```
+- **`-i`, `--input_formats`** (optional): Input formats of the files to be converted (e.g., `.mp4 .ts`). If not provided, all video files in the directory will be converted.
 
-This example will:
-1. Look for `.mp4` files in the `./videos` directory.
-2. Convert them to `.mkv` format with a bitrate of 800k and a resolution of 1920x1080.
-3. Remove any metadata from the video files.
+  Example: `-i .mp4 .avi`
 
-## How the Script Works
+- **`-o`, `--output_format`** (optional): Output format of the converted files (default: `.mkv`).
 
-1. **GPU Detection**: The script detects whether a GPU is available and selects the appropriate encoder:
-   - If an NVIDIA GPU is detected, it uses the `hevc_nvenc` encoder.
-   - If an AMD GPU is detected, it uses the `hevc_amf` encoder.
-   - If no GPU is detected, it defaults to the `libx265` encoder for CPU-based encoding.
+  Example: `-o .mp4`
 
-2. **Batch Processing**: The script goes through all files in the specified directory. If `--input_formats` is specified, it only processes files that match those formats.
+- **`-b`, `--bitrate`** (optional): Bitrate for the video (e.g., `600k`). If not provided, the original bitrate is used.
 
-3. **Conversion Process**:
-   - **Original Files**: Each original file is moved to an `old` subdirectory in the specified directory before conversion.
-   - **Conversion Command**: The script builds an FFmpeg command with the selected options (encoder, bitrate, resolution, metadata removal).
-   - **Progress Display**: A progress bar shows the overall progress, while each file's individual progress is also tracked.
+  Example: `-b 800k`
 
-4. **Output**: The converted files are saved in the same directory with the specified output format, leaving the original files in the `old` subdirectory.
+- **`-r`, `--resolution`** (optional): Resolution for upscaling (e.g., `1280x720`). If not provided, no upscaling is applied.
 
-## Additional Notes
+  Example: `-r 1920x1080`
 
-- Make sure `ffmpeg` and `ffprobe` are available in your PATH, as they are essential for this script.
-- `tqdm` will provide visual feedback for progress; ensure your terminal supports this display.
-- Test on a small batch first to confirm that your parameters (bitrate, resolution, etc.) provide the desired output quality.
+- **`--remove_metadata`** (optional): Remove metadata from the video file.
 
-Happy converting!
+  Example: `--remove_metadata`
+
+### Examples
+
+1. Convert all video files in a directory to MKV format with the original bitrate:
+
+   ```bash
+   python video_converter.py -d /path/to/videos
+   ```
+
+2. Convert only `.mp4` and `.avi` files to `.mkv`, upscale to `1280x720`, and remove metadata:
+
+   ```bash
+   python video_converter.py -d /path/to/videos -i .mp4 .avi -r 1280x720 --remove_metadata
+   ```
+
+3. Convert all video files to `.mp4` format with a custom bitrate of `800k`:
+   ```bash
+   python video_converter.py -d /path/to/videos -o .mp4 -b 800k
+   ```
+
+## How It Works
+
+1. The script detects the type of GPU available (NVIDIA, AMD, or CPU) and selects the appropriate encoder.
+2. It collects all the video files that match the input formats specified.
+3. It creates an "old" directory in the provided directory to store the original files.
+4. It processes each video using FFmpeg with options like bitrate, resolution, and metadata removal based on user input.
+5. The processing is done in parallel using multiple threads to speed up the conversion of large batches of files.
+
+## Handling Errors
+
+- If FFmpeg is not found in the system's PATH, the script will notify the user.
+- If any conversion fails, the original file is restored to its initial location.
+
+## Notes
+
+- Ensure that FFmpeg is installed and accessible from your command line before running the script. You can install FFmpeg using:
+  - **Ubuntu**: `sudo apt-get install ffmpeg`
+  - **Windows**: Download from [FFmpeg's official website](https://ffmpeg.org/download.html).
+
+## Contributing
+
+Feel free to submit pull requests or issues to improve this project. Contributions are welcome!
+
+## License
+
+This project is licensed under the MIT License.
+
+## Acknowledgments
+
+- Thanks to the developers of [FFmpeg](https://ffmpeg.org/) for creating a versatile tool for multimedia processing.
