@@ -150,7 +150,8 @@ def process_video(file, args, gpu_type, video_encoder, preset, old_directory):
 
 # Set up command-line arguments
 parser = argparse.ArgumentParser(
-    description="Convert video files to a specific format with optional upscaling and metadata removal."
+    description="Convert video files to a specific format with optional upscaling and metadata removal.",
+    add_help=True  # Enable -h or --help
 )
 parser.add_argument("-d", "--directory", type=str, required=True, help="Directory where the videos are located.")
 parser.add_argument("-i", "--input_formats", nargs="*", default=None, help="Input formats of the files to be converted (e.g., .mp4 .ts). If none are provided, all video files will be converted.")
