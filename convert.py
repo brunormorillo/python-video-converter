@@ -70,8 +70,12 @@ def get_video_duration(video_file):
 # Function to process each video file
 def process_video(file, args, gpu_type, video_encoder, preset, old_directory):
     try:
-        old_full_name = os.path.join(old_directory, os.path.basename(file))
-        output_name = os.path.join(args.directory, os.path.splitext(os.path.basename(file))[0] + args.output_format)
+        old_full_name = os.path.join(old_directory, os.path.relpath(file, args.directory))
+        output_name = os.path.join(args.directory, os.path.relpath(file, args.directory))
+        output_name = os.path.splitext(output_name)[0] + args.output_format
+
+        # Ensure the output directory exists
+        os.makedirs(os.path.dirname(output_name), exist_ok=True)
 
         print(f"Processing file: {os.path.basename(old_full_name)}")
 
@@ -200,7 +204,8 @@ if total_files > 0:
 
     # Move all files to the "old" directory before starting conversion
     for file in files_to_convert:
-        old_full_name = os.path.join(old_directory, os.path.basename(file))
+        old_full_name = os.path.join(old_directory, os.path.relpath(file, directory))
+        os.makedirs(os.path.dirname(old_full_name), exist_ok=True)
         os.rename(file, old_full_name)
 
     with ThreadPoolExecutor(max_workers=4) as executor:
