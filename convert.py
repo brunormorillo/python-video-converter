@@ -51,6 +51,20 @@ def get_original_bitrate(video_file):
         print(f"Error getting original bitrate: {e}")
         return None
 
+# Function to get the duration of a video file
+def get_video_duration(video_file):
+    try:
+        result = subprocess.check_output(
+            [
+                "ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1", video_file
+            ]
+        ).decode("utf-8").strip()
+        return float(result)
+    except Exception as e:
+        print(f"Error getting video duration: {e}")
+        return None
+
 # Function to process each video file
 def process_video(file, args, gpu_type, video_encoder, preset, old_directory):
     try:
@@ -60,6 +74,7 @@ def process_video(file, args, gpu_type, video_encoder, preset, old_directory):
         print(f"Processing file: {os.path.basename(old_full_name)}")
 
         video_bitrate = args.bitrate if args.bitrate else get_original_bitrate(old_full_name)
+        video_duration = get_video_duration(old_full_name)
 
         command = [
             "ffmpeg",
@@ -93,35 +108,38 @@ def process_video(file, args, gpu_type, video_encoder, preset, old_directory):
         else:
             log_file = open(os.devnull, "w")
 
-            process = subprocess.Popen(
-                command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                universal_newlines=True,
-                bufsize=1
-            )
+        process = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            bufsize=1
+        )
 
-            with tqdm(total=100, desc=f"{os.path.basename(old_full_name)} Progress", leave=False) as pbar_file:
-                progress = 0
-                for line in process.stdout:
-                    if args.debug:
-                        log_file.write(line)  # Write each line to the log file if debug is enabled
-                    match = re.search(r"out_time_ms=(\d+)", line)
-                    if match:
-                        progress = min(100, int(match.group(1)) // 1000000)  # Convert to seconds
+        with tqdm(total=100, desc=f"{os.path.basename(old_full_name)} Progress", leave=False) as pbar_file:
+            last_progress = 0
+            for line in process.stdout:
+                if args.debug:
+                    log_file.write(line)  # Write each line to the log file if debug is enabled
+                match = re.search(r"out_time_ms=(\d+)", line)
+                if match and video_duration:
+                    out_time_seconds = int(match.group(1)) / 1000000  # Convert to seconds
+                    progress = min(99, int((out_time_seconds / video_duration) * 100))  # Cap at 99%
+                    if progress > last_progress:
                         pbar_file.n = progress
                         pbar_file.refresh()
+                        last_progress = progress
 
-                process.wait()
-                log_file.close()
+            process.wait()
+            if process.returncode != 0:
+                raise subprocess.CalledProcessError(process.returncode, command)
+            # Set progress to 100% after process ends
+            pbar_file.n = 100
+            pbar_file.refresh()
+            pbar_file.close()
+            print(f"Finished processing file: {os.path.basename(old_full_name)}")
 
-                if process.returncode != 0:
-                    raise subprocess.CalledProcessError(process.returncode, command)
-                # Ensure the bar is completed after process ends
-                pbar_file.n = 100
-                pbar_file.refresh()
-                pbar_file.close()
-                print(f"Finished processing file: {os.path.basename(old_full_name)}")
+        log_file.close()
 
     except subprocess.CalledProcessError as e:
         print(f"Error processing file {os.path.basename(file)}: {e}")
