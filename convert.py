@@ -344,11 +344,11 @@ directory = args.directory
 # Collect all video files to be converted
 files_to_convert = []
 for root, dirs, files in os.walk(directory):
+    dirs.sort()  # Sort directories alphabetically
+    files.sort()  # Sort files alphabetically
     for file in files:
         if args.input_formats is None or file.endswith(tuple(args.input_formats)):
             files_to_convert.append(os.path.join(root, file))
-
-files_to_convert.sort()  # Sort files alphabetically
 
 total_files = len(files_to_convert)
 print(f"Starting conversion of {total_files} files...")
