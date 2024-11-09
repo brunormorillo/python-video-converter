@@ -93,14 +93,26 @@ def process_video(file, args, gpu_type, video_encoder, preset, old_directory):
             "-preset",
             preset,
             "-c:a",
-            "aac",
+            args.audio_codec,
             "-b:a",
-            "128k",
+            args.audio_bitrate,
             "-progress", "pipe:1"
         ]
 
         if args.resolution:
             command.extend(["-vf", f"scale={args.resolution}"])
+
+        if args.framerate:
+            command.extend(["-r", str(args.framerate)])
+
+        if args.crf is not None:
+            command.extend(["-crf", str(args.crf)])
+
+        if args.threads:
+            command.extend(["-threads", str(args.threads)])
+
+        if args.audio_filter:
+            command.extend(["-af", args.audio_filter])
 
         if args.remove_metadata:
             command.extend(["-map_metadata", "-1"])
@@ -164,8 +176,17 @@ parser.add_argument("-i", "--input_formats", nargs="*", default=None, help="Inpu
 parser.add_argument("-o", "--output_format", type=str, default=".mkv", help="Output format of the converted files (default: .mkv).")
 parser.add_argument("-b", "--bitrate", type=str, default=None, help="Bitrate for the video (e.g., 600k). If not provided, the original bitrate is used.")
 parser.add_argument("-r", "--resolution", type=str, default=None, help="Resolution for upscaling (e.g., 1280x720). If not provided, no upscaling is applied.")
+parser.add_argument("--preset", type=str, choices=["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"], default=None, help="FFmpeg preset for encoding speed. Defaults to 'slow' for GPU and 'veryslow' for CPU if not specified.")
+parser.add_argument("--audio_codec", type=str, default="aac", help="Audio codec to use (e.g., aac, mp3, opus). Default is 'aac'.")
+parser.add_argument("--audio_bitrate", type=str, default="128k", help="Bitrate for the audio (e.g., 128k). Default is '128k'.")
+parser.add_argument("--framerate", type=int, default=None, help="Set the video framerate (e.g., 24, 30). If not provided, the original framerate is used.")
+parser.add_argument("--crf", type=int, default=None, help="Set the quality of compression using CRF (Constant Rate Factor). Lower values mean better quality. Only applies to certain encoders like libx264 or libx265.")
+parser.add_argument("--container_format", type=str, default=None, help="Set the container format (e.g., mp4, mkv). Default is determined by the output file extension.")
+parser.add_argument("--threads", type=int, default=None, help="Set the number of threads for FFmpeg. Default is determined by FFmpeg automatically.")
+parser.add_argument("--audio_filter", type=str, default=None, help="Apply an audio filter (e.g., volume=1.5 to increase volume by 50%).")
 parser.add_argument("--remove_metadata", action="store_true", help="Remove metadata from the video file.")
 parser.add_argument("--debug", action="store_true", help="Enable debug mode to generate detailed logs for each conversion.")
+parser.add_argument("--max_simultaneous", type=int, default=5, help="Set the maximum number of videos to convert simultaneously. Default is 5.")
 args = parser.parse_args()
 
 # Display ffmpeg version
@@ -187,15 +208,12 @@ print(f"Starting conversion of {total_files} files...")
 gpu_type = detect_gpu()
 print(f"Using {gpu_type.upper()} for processing.")
 
-if gpu_type == "nvidia":
-    video_encoder = "hevc_nvenc"
-    preset = "slow"
-elif gpu_type == "amd":
-    video_encoder = "hevc_amf"
-    preset = "slow"
+if gpu_type == "nvidia" or gpu_type == "amd":
+    video_encoder = "hevc_nvenc" if gpu_type == "nvidia" else "hevc_amf"
+    preset = args.preset if args.preset else "slow"
 else:
     video_encoder = "libx265"
-    preset = "veryslow"
+    preset = args.preset if args.preset else "veryslow"
 
 if total_files > 0:
     old_directory = os.path.join(directory, "old")
@@ -208,7 +226,7 @@ if total_files > 0:
         os.makedirs(os.path.dirname(old_full_name), exist_ok=True)
         os.rename(file, old_full_name)
 
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    with ThreadPoolExecutor(max_workers=min(args.max_simultaneous, 5)) as executor:
         futures = [executor.submit(process_video, file, args, gpu_type, video_encoder, preset, old_directory) for file in files_to_convert]
         for future in tqdm(futures, desc="Total Progress", unit="file"):
             future.result()
