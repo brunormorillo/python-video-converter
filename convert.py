@@ -202,6 +202,9 @@ for root, dirs, files in os.walk(directory):
         if args.input_formats is None or file.endswith(tuple(args.input_formats)):
             files_to_convert.append(os.path.join(root, file))
 
+# Sort files in alphabetical order
+files_to_convert.sort()
+
 total_files = len(files_to_convert)
 print(f"Starting conversion of {total_files} files...")
 
